@@ -5,7 +5,6 @@ import org.apache.http.client.methods._
 import org.apache.http.impl.client._
 import org.apache.http.util.EntityUtils
 import org.apache.kafka.clients.producer._
-
 import java.util.Properties
 
 object KafkaProducer extends App with AppConfig{
@@ -15,6 +14,7 @@ object KafkaProducer extends App with AppConfig{
     producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaBootstrapServers)
     producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
     producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+    producerProps.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, "2097152")
 
     private val producer = new KafkaProducer[String, String](producerProps)
     private val httpClient = HttpClientBuilder.create().build()
@@ -50,7 +50,7 @@ object KafkaProducer extends App with AppConfig{
         data
     }
 
-    sys.addShutdownHook {
+    scala.sys.addShutdownHook {
         println("Shutting down Kafka producer")
         producer.close()
         httpClient.close()
@@ -61,7 +61,15 @@ object KafkaProducer extends App with AppConfig{
             val data = fetchData()
             if (data.nonEmpty) {
                 val record = new ProducerRecord[String, String](kafkaTopic, data)
-                producer.send(record)
+                producer.send(record, new Callback {
+                    override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit = {
+                        if (exception != null) {
+                            println(s"Error sending record: ${exception.getMessage}")
+                        } else {
+                            println(s"Record sent to topic ${metadata.topic()} partition ${metadata.partition()} offset ${metadata.offset()}")
+                        }
+                    }
+                })
                 println(s"Sent data to Kafka: ${data.take(100)}...")
             }
         } catch {

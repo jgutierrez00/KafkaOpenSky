@@ -1,7 +1,7 @@
 package opensky.consumer
 
+import opensky.config.AppConfig
 import opensky.models.AircraftState
-import opensky.producer.KafkaProducer.{kafkaBootstrapServers, kafkaTopic}
 import org.apache.spark.sql._
 import org.json4s.jackson.JsonMethods
 import org.json4s.DefaultFormats
@@ -9,7 +9,7 @@ import org.json4s.DefaultFormats
 import scala.concurrent.duration.DurationDouble
 import scala.util.{Failure, Success, Try}
 
-object SparkConsumer extends App{
+object SparkConsumer extends App with AppConfig{
 
     System.setProperty("hadoop.home.dir", "C:\\hadoop-3.4.1")
     System.load("C:\\hadoop-3.4.1\\bin\\hadoop.dll")
@@ -42,7 +42,7 @@ object SparkConsumer extends App{
     val flightQuery = flightData.writeStream
         .outputMode("append")
         .format("console")
-        .trigger(org.apache.spark.sql.streaming.Trigger.ProcessingTime("1 seconds"))
+        .trigger(org.apache.spark.sql.streaming.Trigger.ProcessingTime("10 seconds"))
         .start()
 
     flightQuery.awaitTermination()
